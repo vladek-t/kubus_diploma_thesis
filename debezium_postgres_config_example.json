@@ -1,0 +1,28 @@
+{
+  "name": "crypto-postgres-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "plugin.name": "pgoutput",
+    
+    "database.hostname": "HOST",
+    "database.port": "5432",
+    "database.user": "USER",
+    "database.password": "PASSWORD",
+    "database.dbname": "DBNAME",
+    "database.sslmode": "require",
+    
+    "database.driver.sslfactory": "org.postgresql.ssl.NonValidatingFactory",
+    "database.driver.ssl": "true",
+    "database.driver.prepareThreshold": "0",
+    
+    "topic.prefix": "cdc",
+    "table.include.list": "public.crypto_rates",
+    "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+    "schema.history.internal.kafka.topic": "schemahistory.crypto",
+    
+    "decimal.handling.mode": "double",
+    "slot.name": "debezium_crypto_slot",
+    "slot.drop.on.stop": "false"
+  }
+}
