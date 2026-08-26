@@ -11,15 +11,26 @@ default_args = {
 with DAG(
     dag_id='build_crypto_mart',
     default_args=default_args,
-    schedule_interval='@hourly',   # можно настроить по расписанию
+    schedule_interval='@hourly',   # или None для ручного запуска
     catchup=False,
     tags=['mart'],
 ) as dag:
 
-    create_mart_table = TrinoOperator(
-        task_id='create_crypto_summary',
+    drop_summary = TrinoOperator(
+        task_id='drop_crypto_summary',
+        sql="DROP TABLE IF EXISTS minio.crypto.crypto_summary_24h",
+        trino_conn_id='trino_default',
+    )
+
+    create_summary = TrinoOperator(
+        task_id='create_summary',
         sql="""
-        CREATE TABLE IF NOT EXISTS minio.crypto.crypto_summary_24h AS
+        CREATE TABLE minio.crypto.crypto_summary_24h
+        WITH (
+            format = 'PARQUET',
+            external_location = 's3://crypto-data-lake/marts/crypto_summary_24h'
+        )
+        AS
         SELECT
             coin_symbol,
             coin_name,
@@ -27,12 +38,12 @@ with DAG(
             AVG(price_usd) AS avg_price,
             MIN(price_usd) AS min_price,
             MAX(price_usd) AS max_price,
-            MAX_BY(price_usd, recorded_at) AS last_price
+            MAX_BY(price_usd, from_iso8601_timestamp(recorded_at)) AS last_price
         FROM minio.crypto.crypto_rates_history
-        WHERE recorded_at >= NOW() - INTERVAL '24' HOUR
+        WHERE from_iso8601_timestamp(recorded_at) >= NOW() - INTERVAL '24' HOUR
         GROUP BY coin_symbol, coin_name
         """,
         trino_conn_id='trino_default',
     )
 
-    # Опционально можно вставить результаты в другую таблицу или просто оставить как есть
+    drop_summary >> create_summary

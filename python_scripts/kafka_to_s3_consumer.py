@@ -5,12 +5,14 @@ import boto3
 from botocore.client import Config
 import time
 
-KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
+# KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
+KAFKA_BOOTSTRAP_SERVERS = ['kafka:29092']
 KAFKA_TOPICS = ['cdc.public.crypto_rates', 'cdc.public.crypto_rates_history']
 GROUP_ID = 's3_loader_group'
 
 S3_BUCKET = 'crypto-data-lake'
-S3_ENDPOINT = 'http://127.0.0.1:9000'
+# S3_ENDPOINT = 'http://127.0.0.1:9000'
+S3_ENDPOINT = 'http://minio:9000'
 S3_ACCESS_KEY = 'minioadmin'
 S3_SECRET_KEY = 'minioadminpassword'
 

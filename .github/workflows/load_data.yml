@@ -2,9 +2,8 @@ name: Cloud DB Data Ingestion
 
 on:
   schedule:
-    # Запуск каждые 15 минут (можно настроить под себя)
     - cron: '*/15 * * * *'
-  workflow_dispatch: # Позволяет запускать скрипт вручную кнопкой в UI Git
+  workflow_dispatch:
 
 jobs:
   run-injector:
@@ -29,4 +28,4 @@ jobs:
     - name: Run API Fetcher
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: python fetch_api_data.py
+      run: python python_scripts/fetch_api_data.py

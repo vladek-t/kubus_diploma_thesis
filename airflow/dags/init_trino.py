@@ -42,4 +42,24 @@ with DAG(
         trino_conn_id='trino_default',
     )
 
-    create_schema >> create_table
+    create_history_table = TrinoOperator(
+        task_id='create_history_table',
+        sql="""
+        CREATE TABLE IF NOT EXISTS minio.crypto.crypto_rates_history (
+            id INTEGER,
+            coin_symbol VARCHAR,
+            coin_name VARCHAR,
+            price_usd DOUBLE,
+            volume_24h DOUBLE,
+            recorded_at VARCHAR,
+            _op VARCHAR
+        )
+        WITH (
+            format = 'JSON',
+            external_location = 's3://crypto-data-lake/raw/crypto_rates_history/'
+        )
+        """,
+        trino_conn_id='trino_default',
+    )
+
+    create_schema >> create_table >> create_history_table

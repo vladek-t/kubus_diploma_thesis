@@ -1,5 +1,5 @@
 FROM python:3.10-slim
 WORKDIR /app
-COPY kafka_to_s3_consumer.py .
+COPY python_scripts/kafka_to_s3_consumer.py .
 RUN pip install kafka-python boto3
-CMD ["python", "kafka_to_s3_consumer.py"]
+CMD ["python", "python_scripts/kafka_to_s3_consumer.py"]
