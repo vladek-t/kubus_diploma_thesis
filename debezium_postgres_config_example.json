@@ -17,7 +17,7 @@
     "database.driver.prepareThreshold": "0",
     
     "topic.prefix": "cdc",
-    "table.include.list": "public.crypto_rates",
+    "table.include.list": "public.crypto_rates,public.crypto_rates_history",
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "schemahistory.crypto",
     

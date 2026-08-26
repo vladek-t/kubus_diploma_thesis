@@ -1,22 +1,19 @@
-import os
 import json
 from datetime import datetime
 from kafka import KafkaConsumer
 import boto3
 from botocore.client import Config
+import time
 
-# Настройки Kafka - используем явный IP вместо localhost
 KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
-KAFKA_TOPIC = 'cdc.public.crypto_rates'
+KAFKA_TOPICS = ['cdc.public.crypto_rates', 'cdc.public.crypto_rates_history']
 GROUP_ID = 's3_loader_group'
 
-# Настройки MinIO (S3)
 S3_BUCKET = 'crypto-data-lake'
 S3_ENDPOINT = 'http://127.0.0.1:9000'
 S3_ACCESS_KEY = 'minioadmin'
 S3_SECRET_KEY = 'minioadminpassword'
 
-# Инициализация S3 клиента
 s3_client = boto3.client(
     's3',
     endpoint_url=S3_ENDPOINT,
@@ -26,44 +23,70 @@ s3_client = boto3.client(
     region_name='us-east-1'
 )
 
-def save_to_s3(message_value):
+def ensure_bucket_exists(bucket_name):
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+        print(f"Бакет {bucket_name} уже существует")
+    except:
+        s3_client.create_bucket(Bucket=bucket_name)
+        print(f"Создан бакет {bucket_name}")
+
+def save_to_s3(message_value, topic):
     try:
         data = json.loads(message_value)
+        payload = data.get('payload')
+        if not payload:
+            return
+        op = payload.get('op')
+        after = payload.get('after')
+        before = payload.get('before')
+
+        if op in ('c', 'u', 'r') and after is not None:
+            row = after
+        elif op == 'd' and before is not None:
+            row = before
+        else:
+            return
+
+        row['_op'] = op
+
         now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
         timestamp_str = now.strftime("%H%M%S_%f")
-        
-        # Структурированное хранение по датам
-        s3_key = f"raw/crypto_rates/dt={date_str}/{timestamp_str}.json"
-        
+
+        if 'history' in topic:
+            folder = 'raw/crypto_rates_history'
+        else:
+            folder = 'raw/crypto_rates'
+
+        s3_key = f"{folder}/{timestamp_str}.json"
+
         s3_client.put_object(
             Bucket=S3_BUCKET,
             Key=s3_key,
-            Body=json.dumps(data, ensure_ascii=False, indent=2),
+            Body=json.dumps(row, ensure_ascii=False),
             ContentType='application/json'
         )
-        print(f"[{now}] Файл успешно сохранен в S3: {s3_key}")
+        print(f"[{now}] Файл сохранён: {s3_key}")
     except Exception as e:
-        print(f"Ошибка при сохранении в S3: {e}")
+        print(f"Ошибка при сохранении: {e}")
 
 def main():
-    print("Подключение к Kafka брокеру (127.0.0.1:9092)...")
-    
-    # Создаем консьюмер с жестким указанием версии API Kafka
+    print("Подключение к Kafka брокеру...")
+    ensure_bucket_exists(S3_BUCKET)
+
     consumer = KafkaConsumer(
-        KAFKA_TOPIC,
+        *KAFKA_TOPICS,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         group_id=GROUP_ID,
-        auto_offset_reset='earliest',  # Читать топик с самого начала истории
+        auto_offset_reset='earliest',
         enable_auto_commit=True,
-        api_version=(7, 5, 0),         # Соответствует версии образа cp-kafka:7.5.0
         value_deserializer=lambda x: x.decode('utf-8')
     )
-    print("Kafka-to-S3 Consumer успешно запущен и слушает топик...")
-    
+    print("Kafka-to-S3 Consumer запущен и слушает топики...")
+
     try:
         for msg in consumer:
-            save_to_s3(msg.value)
+            save_to_s3(msg.value, msg.topic)
     except KeyboardInterrupt:
         print("Остановка консьюмера пользователем...")
     finally:

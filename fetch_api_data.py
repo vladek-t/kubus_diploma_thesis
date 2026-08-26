@@ -7,7 +7,12 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 def fetch_crypto_prices():
     print("Получение данных из API Coinbase...")
     
-    coins = {'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana'}
+    coins = {
+        'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 
+        'ADA': 'Cardano', 'DOGE': 'Dogecoin', 'XRP': 'XRP',
+        'DOT': 'Polkadot', 'LTC': 'Litecoin', 'AVAX': 'Avalanche',
+        'LINK': 'Chainlink'
+    }
     filtered_data = []
     
     for symbol, name in coins.items():
@@ -67,9 +72,27 @@ def upsert_to_db(data):
     cursor.close()
     conn.close()
 
+def insert_history(data):
+    if not data:
+        return
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    
+    query_history = """
+        INSERT INTO public.crypto_rates_history (coin_symbol, coin_name, price_usd, volume_24h, recorded_at)
+        VALUES (%s, %s, %s, %s, NOW());
+    """
+    for row in data:
+        cursor.execute(query_history, (row['symbol'], row['name'], row['price'], row['volume']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print(f"Добавлено записей в историю: {len(data)}")
+
 if __name__ == "__main__":
     try:
         crypto_data = fetch_crypto_prices()
         upsert_to_db(crypto_data)
+        insert_history(crypto_data)
     except Exception as e:
         print(f"Ошибка при выполнении пайплайна: {e}")
